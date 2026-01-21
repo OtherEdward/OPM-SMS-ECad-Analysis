@@ -1,4 +1,5 @@
 % OPM SMS ECAD Spot Junction Size and Position
+% B select spot junctions
 clear variables; clc
 close all
 

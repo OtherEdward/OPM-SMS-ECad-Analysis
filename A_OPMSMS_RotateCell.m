@@ -1,6 +1,8 @@
 % OPM SMS ECAD Spot Junction Size and Position
+% A rotate cell data for selection
 clear variables; clc
 close all
+
 %% load data
 
 % user select data file
