@@ -8,7 +8,7 @@ close all
 [rPath, rFile] = openLastUsedFile('mat');
 
 % load data
-load([rPath, rFile], 'rotXYZdata', 'regionIDX')
+load([rPath, rFile], 'rotXYZdata', 'regionIDX', 'zStep', 'zHeight')
 
 %% get spot junction data
 
@@ -20,10 +20,14 @@ ptsMax = max(junXYZdata(:, 1:3), [], 1);
 %% set parameters
 
 % set z step size in pixel units
-zStep = 200/116.9;
+if ~exist('zStep', 'var')
+    zStep = 200/116.9;
+end
 
 % set z thickness in pixels
-zHeight = 300/116.9;
+if ~exist('zHeight', 'var')
+    zHeight = 300/116.9;
+end
 
 % get z range
 zRange = ptsMax(3) - ptsMin(3);
@@ -31,17 +35,13 @@ zRange = ptsMax(3) - ptsMin(3);
 % num z steps
 nzSteps = ceil(zRange/zStep);
 
+% set image zoom
 zoom = 10;
 
 %% setup stack
 
-% make 2D image
-[srImage, ~, ~, minMaxArray, ~] = smsReconstructImage(junXYZdata, zoom, 1);
-
-% make zeros stack
-% srStack = zeros(size(srImage, 1), size(srImage, 2), nzSteps);
-
-clear srImage
+% get min/max values for reconstruction
+[~, ~, ~, minMaxArray, ~] = smsReconstructImage(junXYZdata, zoom, 1);
 
 %% make image stack
 
@@ -76,7 +76,6 @@ for i = 1:nzSteps
         clim([0, 3])
 
         % set active figure
-        % set(0, 'CurrentFigure', h)
         figure(h)
 
         % user select points
@@ -102,7 +101,7 @@ for i = 1:nzSteps
             ylim(g.Children, [ptsMin(1), ptsMax(1)])
 
             % setup array with current z position
-            zs = (zLower + (zHeight/2)).*ones(nPts, 1);
+            zs = z.*ones(nPts, 1);
 
             sjMarked = [sjMarked; [x, y, zs]];
 
@@ -115,7 +114,7 @@ for i = 1:nzSteps
 end
 
 close all
-clear inStep stepImage x y zs i g h z zLower zUpper zStep zRange zHeight nPts
+clear inStep stepImage x y zs i g h z zLower zUpper zRange nPts
 
 %% plot result
 
@@ -129,5 +128,51 @@ hold off
 % get number of marked points
 nPts = size(sjMarked, 1);
 
-% get distance between all points
-sjDis = pdist(sjMarked);
+% check for clusters of points.
+dbIdx = dbscan(sjMarked, 1.4*zStep, 2);
+
+% get logical for all uncluster points
+ltZ = dbIdx < 0;
+
+% update to start at 1
+dbIdx(ltZ) = dbIdx(ltZ) + 2;
+dbIdx(~ltZ) = dbIdx(~ltZ) + 1;
+
+% get max cluster
+mxDB = max(dbIdx);
+
+% make db color array base
+cArray = rand(mxDB, 3);
+
+% make full color array
+cA = zeros(nPts, 3);
+for i = 1:nPts
+    cA(i, :) = cArray(dbIdx(i), :);
+end
+
+% plot points colored by cluster
+scatter3(sjMarked(:, 1), sjMarked(:, 2), sjMarked(:, 3), 100, cA, 'filled')
+axis image
+hold on
+
+% array for consolidated points
+cPts = sjMarked(ltZ, :);
+
+% loop for clustered points
+for i = 2:mxDB
+
+    cPts = [cPts; mean(sjMarked(dbIdx == i, :), 1)];
+
+end
+
+scatter3(cPts(:, 1), cPts(:, 2), cPts(:, 3), 100, 'b.')
+hold off
+
+% overwrite the sjMarked positions
+sjMarked = cPts;
+
+clear cPts cA cArray i nPts ltZ mxDB cIdx dbIdx nPts
+
+%% save data
+
+save([rPath, rFile], 'sjMarked', 'zHeight', 'zStep', '-append')
