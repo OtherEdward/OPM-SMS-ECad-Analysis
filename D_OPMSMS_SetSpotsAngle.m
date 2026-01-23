@@ -123,3 +123,36 @@ end
 save([rPath, rFile], 'sjData', 'sjAngle', '-append')
 
 %% plot junctions
+
+for i = 1:nSJs
+
+    fprintf(1, '%d of %d\n', i, nSJs);
+
+    % logical for this spot junction
+    thisSJ = sjIDX == i;
+
+    % points for this spot junction
+    sjPts = junXYZdata(thisSJ, 1:3);
+
+    % rotated points
+    rSJpts = sjData{i};
+
+    % setup layout
+    t = tiledlayout(2, 2);
+
+    nexttile
+    plot(sjPts(:, 2), sjPts(:, 1), '.'); axis image
+
+    nexttile
+    xy = smsReconstructImage([sjPts(:, 1), sjPts(:, 2)], 10, 1);
+    imagesc(flipud(xy)); axis image; colormap gray
+
+    nexttile
+    plot(rSJpts(:, 2), rSJpts(:, 1), '.'); axis image
+
+    nexttile
+    xy = smsReconstructImage([rSJpts(:, 1), rSJpts(:, 2)], 10, 1);
+    imagesc(flipud(xy)); axis image; colormap gray
+
+    pause
+end
